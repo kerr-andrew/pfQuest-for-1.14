@@ -2,7 +2,7 @@ name: Bug Report
 description: File a bug report.
 title: "[Bug]: "
 labels: ["bug", "triage"]
-projects: ["pfQuest-1.14"]
+projects: ["pfQuest-for-1.14"]
 type: bug
 body:
   - type: input
