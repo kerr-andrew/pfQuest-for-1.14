@@ -41,6 +41,20 @@
         "YES",
         "NO",
         "StaticPopup_Show",
-        "MouseIsOver"
+        "MouseIsOver",
+        "UIMenus",
+        "WorldFrame",
+        "ToggleWorldMap",
+        "WorldMapFrame",
+        "UIDropDownMenu_Initialize",
+        "UIDropDownMenu_SetSelectedID",
+        "ToggleDropDownMenu",
+        "UIDropDownMenu_AddButton",
+        "UIDropDownMenu_SetWidth",
+        "UIDropDownMenu_SetButtonWidth",
+        "UIDropDownMenu_JustifyText",
+        "FauxScrollFrame_GetOffset",
+        "SlashCmdList",
+        "UIErrorsFrame"
     ]
 }
