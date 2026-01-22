@@ -250,7 +250,7 @@ function tracker.ButtonUpdate(this)
 end
 
 function tracker.ButtonClick(this, event, arg1)
-  if arg1 == "RightButton" then
+  if event == "RightButton" then
     for questid, data in pairs(pfQuest.questlog) do
       if data.title == this.title then
         -- show questlog
