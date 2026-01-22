@@ -132,7 +132,8 @@ pfQuest_defconfig = {
     default = "0.3", type = "text", config = "nodefade" },
   { text = L["Highlight Nodes On Mouseover"],
     default = "1", type = "checkbox", config = "mouseover" },
-
+  { text = L["Show World Map in Window"], 
+    default = "1", type = "checkbox", config = "worldmapwindow" },
   { text = L["Routes"],
     default = nil, type = "header" },
   { text = L["Show Route Between Objects"],
@@ -168,7 +169,21 @@ StaticPopupDialogs["PFQUEST_RESET"] = {
   hideOnEscape = 1,
 }
 
-pfQuestConfig = CreateFrame("Frame", "pfQuestConfig", UIParent)
+pfQuestConfig = CreateFrame("Frame", "pfQuestConfig", UIParent, "BackdropTemplate")
+
+-- detect current addon path
+local tocs = { "", "-master", "-tbc", "-wotlk" }
+for _, name in pairs(tocs) do
+  local current = string.format("pfQuest%s", name)
+  local version = GetAddOnMetadata(current, "Version")
+  if version then
+    pfQuestConfig.path = "Interface\\AddOns\\" .. current
+    pfQuestConfig.version = tostring(version)
+    pfQuestConfig.pfCurrent = current
+    break
+  end
+end
+
 pfQuestConfig:Hide()
 pfQuestConfig:SetWidth(280)
 pfQuestConfig:SetHeight(550)
@@ -178,7 +193,7 @@ pfQuestConfig:SetMovable(true)
 pfQuestConfig:EnableMouse(true)
 pfQuestConfig:SetClampedToScreen(true)
 pfQuestConfig:RegisterEvent("ADDON_LOADED")
-pfQuestConfig:SetScript("OnEvent", function()
+pfQuestConfig:SetScript("OnEvent", function(self, event, arg1)
   if arg1 == "pfQuest" or arg1 == "pfQuest-tbc" or arg1 == "pfQuest-wotlk" then
     pfQuestConfig:LoadConfig()
     pfQuestConfig:MigrateHistory()
@@ -203,33 +218,21 @@ pfQuestConfig:SetScript("OnEvent", function()
 end)
 
 pfQuestConfig:SetScript("OnMouseDown", function()
-  this:StartMoving()
+  pfQuestConfig:StartMoving()
 end)
 
 pfQuestConfig:SetScript("OnMouseUp", function()
-  this:StopMovingOrSizing()
+  pfQuestConfig:StopMovingOrSizing()
 end)
 
 pfQuestConfig:SetScript("OnShow", function()
-  this:UpdateConfigEntries()
+  pfQuestConfig:UpdateConfigEntries()
 end)
 
 pfQuestConfig.vpos = 40
 
 pfUI.api.CreateBackdrop(pfQuestConfig, nil, true, 0.75)
 table.insert(UISpecialFrames, "pfQuestConfig")
-
--- detect current addon path
-local tocs = { "", "-master", "-tbc", "-wotlk" }
-for _, name in pairs(tocs) do
-  local current = string.format("pfQuest%s", name)
-  local _, title = GetAddOnInfo(current)
-  if title then
-    pfQuestConfig.path = "Interface\\AddOns\\" .. current
-    pfQuestConfig.version = tostring(GetAddOnMetadata(current, "Version"))
-    break
-  end
-end
 
 pfQuestConfig.title = pfQuestConfig:CreateFontString("Status", "LOW", "GameFontNormal")
 pfQuestConfig.title:SetFontObject(GameFontWhite)
@@ -238,7 +241,7 @@ pfQuestConfig.title:SetJustifyH("LEFT")
 pfQuestConfig.title:SetFont(pfUI.font_default, 14)
 pfQuestConfig.title:SetText("|cff33ffccpf|rQuest " .. L["Config"])
 
-pfQuestConfig.close = CreateFrame("Button", "pfQuestConfigClose", pfQuestConfig)
+pfQuestConfig.close = CreateFrame("Button", "pfQuestConfigClose", pfQuestConfig, "BackdropTemplate")
 pfQuestConfig.close:SetPoint("TOPRIGHT", -5, -5)
 pfQuestConfig.close:SetHeight(20)
 pfQuestConfig.close:SetWidth(20)
@@ -251,10 +254,10 @@ pfQuestConfig.close.texture:SetPoint("BOTTOMRIGHT", pfQuestConfig.close, "BOTTOM
 pfQuestConfig.close.texture:SetVertexColor(1,.25,.25,1)
 pfUI.api.SkinButton(pfQuestConfig.close, 1, .5, .5)
 pfQuestConfig.close:SetScript("OnClick", function()
-  this:GetParent():Hide()
+  pfQuestConfig:Hide()
 end)
 
-pfQuestConfig.welcome = CreateFrame("Button", "pfQuestConfigWelcome", pfQuestConfig)
+pfQuestConfig.welcome = CreateFrame("Button", "pfQuestConfigWelcome", pfQuestConfig, "BackdropTemplate")
 pfQuestConfig.welcome:SetWidth(160)
 pfQuestConfig.welcome:SetHeight(28)
 pfQuestConfig.welcome:SetPoint("BOTTOMLEFT", 10, 10)
@@ -265,7 +268,7 @@ pfQuestConfig.welcome.text:SetFont(pfUI.font_default, pfUI_config.global.font_si
 pfQuestConfig.welcome.text:SetText(L["Welcome Screen"])
 pfUI.api.SkinButton(pfQuestConfig.welcome)
 
-pfQuestConfig.save = CreateFrame("Button", "pfQuestConfigReload", pfQuestConfig)
+pfQuestConfig.save = CreateFrame("Button", "pfQuestConfigReload", pfQuestConfig, "BackdropTemplate")
 pfQuestConfig.save:SetWidth(160)
 pfQuestConfig.save:SetHeight(28)
 pfQuestConfig.save:SetPoint("BOTTOMRIGHT", -10, 10)
@@ -315,7 +318,6 @@ local maxtext = 130
 local configframes = {}
 function pfQuestConfig:CreateConfigEntries(config)
   local count = 1
-
   for _, data in pairs(config) do
     if data.type then
       -- basic frame
@@ -342,7 +344,7 @@ function pfQuestConfig:CreateConfigEntries(config)
         frame.input:SetNormalTexture("")
         frame.input:SetPushedTexture("")
         frame.input:SetHighlightTexture("")
-        pfUI.api.CreateBackdrop(frame.input, nil, true)
+        pfUI.api.CreateBackdrop(frame.input, nil, false)
 
         frame.input:SetWidth(16)
         frame.input:SetHeight(16)
@@ -354,17 +356,17 @@ function pfQuestConfig:CreateConfigEntries(config)
         end
 
         frame.input:SetScript("OnClick", function ()
-          if this:GetChecked() then
-            pfQuest_config[this.config] = "1"
+          if frame.input:GetChecked() then
+            pfQuest_config[frame.input.config] = "1"
           else
-            pfQuest_config[this.config] = "0"
+            pfQuest_config[frame.input.config] = "0"
           end
 
           pfQuest:ResetAll()
         end)
       elseif data.type == "text" then
         -- input field
-        frame.input = CreateFrame("EditBox", nil, frame)
+        frame.input = CreateFrame("EditBox", nil, frame, "BackdropTemplate")
         frame.input:SetTextColor(.2,1,.8,1)
         frame.input:SetJustifyH("RIGHT")
         frame.input:SetTextInsets(5,5,5,5)
@@ -374,19 +376,19 @@ function pfQuestConfig:CreateConfigEntries(config)
         frame.input:SetFontObject(GameFontNormal)
         frame.input:SetAutoFocus(false)
         frame.input:SetScript("OnEscapePressed", function(self)
-          this:ClearFocus()
+          frame.input:ClearFocus()
         end)
 
         frame.input.config = data.config
         frame.input:SetText(pfQuest_config[data.config])
 
         frame.input:SetScript("OnTextChanged", function(self)
-          pfQuest_config[this.config] = this:GetText()
+          pfQuest_config[frame.input.config] = frame.input:GetText()
         end)
 
         pfUI.api.CreateBackdrop(frame.input, nil, true)
       elseif data.type == "button" and data.func then
-        frame.input = CreateFrame("Button", nil, frame)
+        frame.input = CreateFrame("Button", nil, frame, "BackdropTemplate")
         frame.input:SetWidth(32)
         frame.input:SetHeight(16)
         frame.input:SetPoint("RIGHT", -20, 0)
@@ -472,7 +474,7 @@ do -- welcome/init popup dialog
   end
 
   -- create welcome/init window
-  pfQuestInit = CreateFrame("Frame", "pfQuestInit", UIParent)
+  pfQuestInit = CreateFrame("Frame", "pfQuestInit", UIParent, "BackdropTemplate")
   pfQuestInit:Hide()
   pfQuestInit:SetWidth(400)
   pfQuestInit:SetHeight(270)
@@ -481,11 +483,11 @@ do -- welcome/init popup dialog
   pfQuestInit:SetPoint("CENTER", 0, 0)
   pfQuestInit:RegisterEvent("PLAYER_ENTERING_WORLD")
   pfQuestInit:SetScript("OnMouseDown", function()
-    this:StartMoving()
+    pfQuestInit:StartMoving()
   end)
 
   pfQuestInit:SetScript("OnMouseUp", function()
-    this:StopMovingOrSizing()
+    pfQuestInit:StopMovingOrSizing()
   end)
 
   pfQuestInit:SetScript("OnEvent", function()
@@ -503,7 +505,7 @@ do -- welcome/init popup dialog
 
       pfQuestInit:Show()
     end
-    this:UnregisterAllEvents()
+    pfQuestInit:UnregisterAllEvents()
   end)
 
   pfQuestInit:SetScript("OnShow", function()
@@ -534,7 +536,7 @@ do -- welcome/init popup dialog
   }
 
   for i, button in pairs(buttons) do
-    pfQuestInit[i] = CreateFrame("Button", "pfQuestInitLeft", pfQuestInit)
+    pfQuestInit[i] = CreateFrame("Button", "pfQuestInitLeft", pfQuestInit, "BackdropTemplate")
     pfQuestInit[i]:SetWidth(120)
     pfQuestInit[i]:SetHeight(160)
     pfQuestInit[i]:SetPoint(unpack(button.position))
@@ -557,17 +559,17 @@ do -- welcome/init popup dialog
       desaturate(pfQuestInit[1].bg, true)
       desaturate(pfQuestInit[2].bg, true)
       desaturate(pfQuestInit[3].bg, true)
-      desaturate(pfQuestInit[this:GetID()].bg, false)
-      config_stage.mode = this:GetID()
+      desaturate(pfQuestInit[i].bg, false)
+      config_stage.mode = i
     end)
 
     local OnEnter = pfQuestInit[i]:GetScript("OnEnter")
     pfQuestInit[i]:SetScript("OnEnter", function()
       if OnEnter then OnEnter() end
-      GameTooltip_SetDefaultAnchor(GameTooltip, this)
+      GameTooltip_SetDefaultAnchor(GameTooltip, pfQuestInit[i])
 
-      GameTooltip:SetText(this.caption:GetText())
-      GameTooltip:AddLine(buttons[this:GetID()].tooltip, 1, 1, 1, true)
+      GameTooltip:SetText(pfQuestInit[i].caption:GetText())
+      GameTooltip:AddLine(buttons[i].tooltip, 1, 1, 1, true)
       GameTooltip:SetWidth(100)
       GameTooltip:Show()
     end)
@@ -587,18 +589,18 @@ do -- welcome/init popup dialog
   pfQuestInit.checkbox:SetHighlightTexture("")
   pfQuestInit.checkbox:SetWidth(22)
   pfQuestInit.checkbox:SetHeight(22)
-  pfUI.api.CreateBackdrop(pfQuestInit.checkbox, nil, true)
+  pfUI.api.CreateBackdrop(pfQuestInit.checkbox, nil, false)
 
   pfQuestInit.checkbox.caption = pfQuestInit:CreateFontString("Status", "LOW", "GameFontWhite")
   pfQuestInit.checkbox.caption:SetPoint("LEFT", pfQuestInit.checkbox, "RIGHT", 5, 0)
   pfQuestInit.checkbox.caption:SetJustifyH("LEFT")
   pfQuestInit.checkbox.caption:SetText(L["Show Navigation Arrow"])
   pfQuestInit.checkbox:SetScript("OnClick", function()
-    config_stage.arrow = this:GetChecked()
+    config_stage.arrow = pfQuestInit:GetChecked()
   end)
 
   pfQuestInit.checkbox:SetScript("OnEnter", function()
-    GameTooltip_SetDefaultAnchor(GameTooltip, this)
+    GameTooltip_SetDefaultAnchor(GameTooltip, pfQuestInit)
     GameTooltip:SetText(L["Navigation Arrow"])
     GameTooltip:AddLine(L["Show navigation arrow that points you to the nearest quest location."], 1, 1, 1, true)
     GameTooltip:SetWidth(100)
@@ -610,7 +612,7 @@ do -- welcome/init popup dialog
   end)
 
   -- save button
-  pfQuestInit.save = CreateFrame("Button", nil, pfQuestInit)
+  pfQuestInit.save = CreateFrame("Button", nil, pfQuestInit, "BackdropTemplate")
   pfQuestInit.save:SetWidth(100)
   pfQuestInit.save:SetHeight(24)
   pfQuestInit.save:SetPoint("BOTTOMRIGHT", -10, 10)

@@ -54,7 +54,9 @@ local function DrawLine(path,x,y,nx,ny,hl,minimap)
   local xplayer, yplayer, xdraw, ydraw
   if minimap then
     -- player coords
-    xplayer, yplayer = GetPlayerMapPosition("player")
+    local map = C_Map.GetBestMapForUnit("player")
+    local position = C_Map.GetPlayerMapPosition(map, "player")
+    xplayer, yplayer = position ~= nil and position:GetXY() or 0, 0
     xplayer, yplayer = xplayer * 100, yplayer * 100
 
     -- query minimap zoom/size data
@@ -92,8 +94,8 @@ local function DrawLine(path,x,y,nx,ny,hl,minimap)
       end
     else
       -- adjust values to worldmap
-      xpos = xpos / 100 * WorldMapButton:GetWidth()
-      ypos = ypos / 100 * WorldMapButton:GetHeight()
+      xpos = xpos / 100 * WorldMapFrameButton:GetWidth()
+      ypos = ypos / 100 * WorldMapFrameButton:GetHeight()
     end
 
     if display then
@@ -102,7 +104,7 @@ local function DrawLine(path,x,y,nx,ny,hl,minimap)
         if not tex.enable then nline = id break end
       end
 
-      path[nline] = path[nline] or (minimap and pfMap.drawlayer or WorldMapButton.routes):CreateTexture(nil, "OVERLAY")
+      path[nline] = path[nline] or (minimap and pfMap.drawlayer or WorldMapFrameButton.routes):CreateTexture(nil, "OVERLAY")
       path[nline]:SetWidth(4)
       path[nline]:SetHeight(4)
       path[nline]:SetTexture(pfQuestConfig.path.."\\img\\route")
@@ -119,7 +121,7 @@ local function DrawLine(path,x,y,nx,ny,hl,minimap)
       if minimap then -- draw minimap
         path[nline]:SetPoint("CENTER", pfMap.drawlayer, "CENTER", -xpos, ypos)
       else -- draw worldmap
-        path[nline]:SetPoint("CENTER", WorldMapButton, "TOPLEFT", xpos, -ypos)
+        path[nline]:SetPoint("CENTER", WorldMapFrameButton, "TOPLEFT", xpos, -ypos)
       end
 
       path[nline]:Show()
@@ -173,8 +175,10 @@ end
 
 local lastpos, completed = 0, 0
 local function sortfunc(a,b) return a[4] < b[4] end
-pfQuest.route:SetScript("OnUpdate", function()
-  local xplayer, yplayer = GetPlayerMapPosition("player")
+pfQuest.route:SetScript("OnUpdate", function(this)
+  local map = C_Map.GetBestMapForUnit("player")
+  local position = map and C_Map.GetPlayerMapPosition(map, "player")
+  local xplayer, yplayer = position and position:GetXY() or 0, 0
   local wrongmap = xplayer == 0 and yplayer == 0 and true or nil
   local curpos = xplayer + yplayer
 
@@ -294,12 +298,12 @@ pfQuest.route:SetScript("OnUpdate", function()
   end
 end)
 
-pfQuest.route.drawlayer = CreateFrame("Frame", "pfQuestRouteDrawLayer", WorldMapButton)
+pfQuest.route.drawlayer = CreateFrame("Frame", "pfQuestRouteDrawLayer", WorldMapFrameButton)
 pfQuest.route.drawlayer:SetFrameLevel(113)
 pfQuest.route.drawlayer:SetAllPoints()
 
-WorldMapButton.routes = CreateFrame("Frame", "pfQuestRouteDisplay", pfQuest.route.drawlayer)
-WorldMapButton.routes:SetAllPoints()
+WorldMapFrameButton.routes = CreateFrame("Frame", "pfQuestRouteDisplay", pfQuest.route.drawlayer)
+WorldMapFrameButton.routes:SetAllPoints()
 
 pfQuest.route.arrow = CreateFrame("Frame", "pfQuestRouteArrow", UIParent)
 pfQuest.route.arrow:SetPoint("CENTER", 0, -100)
@@ -311,12 +315,12 @@ pfQuest.route.arrow:EnableMouse(true)
 pfQuest.route.arrow:RegisterForDrag('LeftButton')
 pfQuest.route.arrow:SetScript("OnDragStart", function()
   if IsShiftKeyDown() then
-    this:StartMoving()
+    pfQuest.route.arrow:StartMoving()
   end
 end)
 
 pfQuest.route.arrow:SetScript("OnDragStop", function()
-  this:StopMovingOrSizing()
+  pfQuest.route.arrow:StopMovingOrSizing()
 end)
 
 local invalid, lasttarget
@@ -327,13 +331,15 @@ local area, alpha, texalpha, color
 local defcolor = "|cffffcc00"
 local r, g, b
 
-pfQuest.route.arrow:SetScript("OnUpdate", function()
+pfQuest.route.arrow:SetScript("OnUpdate", function(this)
   -- abort if the frame is not initialized yet
   if not this.parent then return end
 
-  xplayer, yplayer = GetPlayerMapPosition("player")
+  local map = C_Map.GetBestMapForUnit("player")
+  local position = map and C_Map.GetPlayerMapPosition(map, "player")
+  xplayer, yplayer = position and position:GetXY() or 0, 0
   wrongmap = xplayer == 0 and yplayer == 0 and true or nil
-  target = this.parent.coords and this.parent.coords[1] and this.parent.coords[1][4] and this.parent.coords[1] or nil
+  local target = this.parent.coords and this.parent.coords[1] and this.parent.coords[1][4] and this.parent.coords[1] or nil
 
   -- disable arrow on invalid map/route
   if not target or wrongmap or pfQuest_config["arrow"] == "0" then

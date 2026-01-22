@@ -85,12 +85,12 @@ pfQuest:RegisterEvent("PLAYER_LEVEL_UP")
 pfQuest:RegisterEvent("PLAYER_ENTERING_WORLD")
 pfQuest:RegisterEvent("SKILL_LINES_CHANGED")
 pfQuest:RegisterEvent("ADDON_LOADED")
-pfQuest:SetScript("OnEvent", function()
+pfQuest:SetScript("OnEvent", function(self, event, arg1)
   if event == "ADDON_LOADED" then
     if arg1 == "pfQuest" or arg1 == "pfQuest-tbc" or arg1 == "pfQuest-wotlk" then
       pfQuest:AddQuestLogIntegration()
       pfQuest:AddWorldMapIntegration()
-      this.lock = GetTime() + 10
+      pfQuest.lock = GetTime() + 10
     else
       return
     end
@@ -114,33 +114,33 @@ pfQuest:SetScript("OnEvent", function()
 
   if event == "QUEST_LOG_UPDATE" then
     -- lock initial scan during incoming events
-    if this.lock and this.lock > GetTime() then
-      this.lock = GetTime() + 1.5
+    if pfQuest.lock and pfQuest.lock > GetTime() then
+      pfQuest.lock = GetTime() + 1.5
     end
   end
 end)
 
 pfQuest:SetScript("OnUpdate", function()
-  if this.lock and this.lock > GetTime() then return end
+  if pfQuest.lock and pfQuest.lock > GetTime() then return end
   if not pfDatabase.localized then return end
 
-  if ( this.tick or .05) > GetTime() then return else this.tick = GetTime() + .05 end
+  if ( pfQuest.tick or .05) > GetTime() then return else pfQuest.tick = GetTime() + .05 end
 
   -- check questlog each second
-  if ( this.qlogtick or 1) < GetTime() then
+  if ( pfQuest.qlogtick or 1) < GetTime() then
     if pfQuest:UpdateQuestlog() then
       pfQuest:Debug("Update Quest|cff33ffcc Log|r [|cffff3333Tick|r]")
     end
-    this.qlogtick = GetTime() + 1
+    pfQuest.qlogtick = GetTime() + 1
   end
 
-  if this.updateQuestLog == true and tsize(this.queue) == 0 then
+  if pfQuest.updateQuestLog == true and tsize(pfQuest.queue) == 0 then
     pfQuest:Debug("Update Quest|cff33ffcc Log")
     pfQuest:UpdateQuestlog()
-    this.updateQuestLog = false
+    pfQuest.updateQuestLog = false
   end
 
-  if this.updateQuestGivers == true then
+  if pfQuest.updateQuestGivers == true then
     pfQuest:Debug("Update Quest|cff33ffcc Givers")
     if pfQuest_config["trackingmethod"] ~= 4 and
       pfQuest_config["allquestgivers"] == "1"
@@ -148,13 +148,13 @@ pfQuest:SetScript("OnUpdate", function()
       local meta = { ["addon"] = "PFQUEST" }
       pfDatabase:SearchQuests(meta)
     end
-    this.updateQuestGivers = false
+    pfQuest.updateQuestGivers = false
   end
 
-  if tsize(this.queue) == 0 then return end
+  if tsize(pfQuest.queue) == 0 then return end
 
   -- process queue
-  for id, entry in pairs(this.queue) do
+  for id, entry in pairs(pfQuest.queue) do
 
     -- remove quest
     if entry[4] == "REMOVE" then
@@ -210,15 +210,15 @@ pfQuest:SetScript("OnUpdate", function()
 
     -- only return when other entries exist
     -- otherwise, continue and update questgivers
-    for id, entry in pairs(this.queue) do
+    for id, entry in pairs(pfQuest.queue) do
       return
     end
   end
 
   -- trigger questgiver update
-  if tsize(this.queue) == 0 then
-    this.updateQuestLog = true
-    this.updateQuestGivers = true
+  if tsize(pfQuest.queue) == 0 then
+    pfQuest.updateQuestLog = true
+    pfQuest.updateQuestGivers = true
   end
 end)
 
@@ -327,21 +327,21 @@ StaticPopupDialogs["PFQUEST_URLCOPY"] = {
   exclusive = 1,
   whileDead = 1,
   hideOnEscape = 1,
-  OnShow = function()
+  OnShow = function(this)
     local editBox = _G[this:GetName().."WideEditBox"]
     editBox:SetText(StaticPopupDialogs["PFQUEST_URLCOPY"].data)
     editBox:HighlightText()
   end,
-  OnHide = function()
+  OnHide = function(this)
     _G[this:GetName().."WideEditBox"]:SetText("")
   end,
-  EditBoxOnEnterPressed = function()
+  EditBoxOnEnterPressed = function(this)
     this:GetParent():Hide()
   end,
-  EditBoxOnEscapePressed = function()
+  EditBoxOnEscapePressed = function(this)
     this:GetParent():Hide()
   end,
-  EditBoxOnTextChanged = function()
+  EditBoxOnTextChanged = function(this)
     this:SetText(StaticPopupDialogs["PFQUEST_URLCOPY"].data)
     this:HighlightText()
   end,
@@ -360,7 +360,7 @@ function pfQuest:AddQuestLogIntegration()
   pfQuest.buttonOnline:SetWidth(18)
   pfQuest.buttonOnline:SetHeight(15)
   pfQuest.buttonOnline:SetPoint("TOPRIGHT", dockFrame, "TOPRIGHT", -12, -10)
-  pfQuest.buttonOnline:SetScript("OnClick", function()
+  pfQuest.buttonOnline:SetScript("OnClick", function(this)
     if pfUI and pfUI.chat then
       pfUI.chat.urlcopy.text:SetText(pfQuest.dburl .. (this:GetID() or 0))
       pfUI.chat.urlcopy:Show()
@@ -390,7 +390,7 @@ function pfQuest:AddQuestLogIntegration()
   pfQuest.buttonLanguage.txt:SetText("|cff000000[|cff333333" .. pfQuest_Loc["Translate"] .. "|cff000000]")
 
   pfQuest.buttonLanguage:SetScript("OnClick", function()
-    UIDropDownMenu_Initialize(self, function()
+    UIDropDownMenu_Initialize(self, function(this)
       local func = function() pfQuest_config.translate = this.value end
       local info = {}
       info.text = "|cffaaaaaa" .. pfQuest_Loc["Reset Language"]
@@ -409,7 +409,7 @@ function pfQuest:AddQuestLogIntegration()
     ToggleDropDownMenu(1, nil, self, "cursor", 3, -3)
   end)
 
-  pfQuest.buttonLanguage:SetScript("OnUpdate", function()
+  pfQuest.buttonLanguage:SetScript("OnUpdate", function(this)
     local id = pfQuest.buttonOnline:GetID()
     local lang = pfQuest_config.translate
 
@@ -494,7 +494,7 @@ function pfQuest:AddWorldMapIntegration()
   if pfQuest_config["worldmapmenu"] ==  "0" then return end
 
   -- Quest Display Selection
-  pfQuest.mapButton = CreateFrame("Frame", "pfQuestMapDropdown", WorldMapButton, "UIDropDownMenuTemplate")
+  pfQuest.mapButton = CreateFrame("Frame", "pfQuestMapDropdown", WorldMapFrameButton, "UIDropDownMenuTemplate")
   pfQuest.mapButton:ClearAllPoints()
   pfQuest.mapButton:SetPoint("TOPRIGHT" , 0, -10)
   pfQuest.mapButton:SetScript("OnShow", function()
@@ -511,8 +511,8 @@ function pfQuest:AddWorldMapIntegration()
       info.text = pfQuest_Loc["All Quests"]
       info.checked = false
       info.func = function()
-        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, this:GetID(), 0)
-        pfQuest_config["trackingmethod"] = this:GetID()
+        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, info:GetID(), 0)
+        pfQuest_config["trackingmethod"] = info:GetID()
         pfQuest:ResetAll()
       end
       UIDropDownMenu_AddButton(info)
@@ -521,8 +521,8 @@ function pfQuest:AddWorldMapIntegration()
       info.text = pfQuest_Loc["Tracked Quests"]
       info.checked = false
       info.func = function()
-        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, this:GetID(), 0)
-        pfQuest_config["trackingmethod"] = this:GetID()
+        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, info:GetID(), 0)
+        pfQuest_config["trackingmethod"] = info:GetID()
         pfQuest:ResetAll()
       end
       UIDropDownMenu_AddButton(info)
@@ -531,8 +531,8 @@ function pfQuest:AddWorldMapIntegration()
       info.text = pfQuest_Loc["Manual Selection"]
       info.checked = false
       info.func = function()
-        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, this:GetID(), 0)
-        pfQuest_config["trackingmethod"] = this:GetID()
+        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, info:GetID(), 0)
+        pfQuest_config["trackingmethod"] = info:GetID()
         pfQuest:ResetAll()
       end
       UIDropDownMenu_AddButton(info)
@@ -541,8 +541,8 @@ function pfQuest:AddWorldMapIntegration()
       info.text = pfQuest_Loc["Hide Quests"]
       info.checked = false
       info.func = function()
-        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, this:GetID(), 0)
-        pfQuest_config["trackingmethod"] = this:GetID()
+        UIDropDownMenu_SetSelectedID(pfQuest.mapButton, info:GetID(), 0)
+        pfQuest_config["trackingmethod"] = info:GetID()
         pfQuest:ResetAll()
       end
       UIDropDownMenu_AddButton(info)
@@ -658,21 +658,21 @@ end
 
 if not GetQuestLink then -- Allow to send questlinks from questlog
   local pfHookQuestLogTitleButton_OnClick = QuestLogTitleButton_OnClick
-  QuestLogTitleButton_OnClick = function(button)
+  QuestLogTitleButton_OnClick = function(this)
     local scrollFrame = EQL3_QuestLogListScrollFrame or ShaguQuest_QuestLogListScrollFrame or QuestLogListScrollFrame
     local questIndex = this:GetID() + FauxScrollFrame_GetOffset(scrollFrame)
     local questName, questLevel = compat.GetQuestLogTitle(questIndex)
     local questids = pfDatabase:GetQuestIDs(questIndex)
     local questid = questids and tonumber(questids[1]) or 0
 
-    if IsShiftKeyDown() and not this.isHeader and ChatFrameEditBox:IsVisible() then
+    if IsShiftKeyDown() and not this.isHeader and getglobal("ACTIVE_CHAT_EDIT_BOX") then
       pfQuestCompat.InsertQuestLink(questid, questName)
       QuestLog_SetSelection(questIndex)
       QuestLog_Update()
       return
     end
 
-    pfHookQuestLogTitleButton_OnClick(button)
+    pfHookQuestLogTitleButton_OnClick(this)
   end
 
   -- Patch ItemRef to display Questlinks
@@ -682,8 +682,8 @@ if not GetQuestLink then -- Allow to send questlinks from questlog
     local isQuest2, _, _   = string.find(link, "quest2:.*")
 
     if isQuest or isQuest2 then
-      if IsShiftKeyDown() and ChatFrameEditBox:IsVisible() then
-        ChatFrameEditBox:Insert(text)
+      if IsShiftKeyDown() and getglobal("ACTIVE_CHAT_EDIT_BOX") then
+        ACTIVE_CHAT_EDIT_BOX:Insert(text)
         return
       end
 

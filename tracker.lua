@@ -9,7 +9,7 @@ local function HideTooltip()
   GameTooltip:Hide()
 end
 
-local function ShowTooltip()
+local function ShowTooltip(this)
   if this.tooltip then
     GameTooltip:ClearLines()
     GameTooltip_SetDefaultAnchor(GameTooltip, this)
@@ -69,29 +69,29 @@ tracker:SetScript("OnEvent", function()
 
   -- restore tracker state
   if pfQuest_config["showtracker"] and pfQuest_config["showtracker"] == "0" then
-    this:Hide()
+    tracker:Hide()
   else
-    this:Show()
+    tracker:Show()
   end
 end)
 
 tracker:SetScript("OnMouseDown",function()
   if not pfQuest_config.lock then
-    this:StartMoving()
+    tracker:StartMoving()
   end
 end)
 
-tracker:SetScript("OnMouseUp",function()
+tracker:SetScript("OnMouseUp",function(this)
   this:StopMovingOrSizing()
   local anchor, x, y = pfUI.api.ConvertFrameAnchor(this, pfUI.api.GetBestAnchor(this))
   this:ClearAllPoints()
   this:SetPoint(anchor, x, y)
 
   -- save position
-  pfQuest_config.trackerpos = { anchor, x, y }
+  pfQuest_config.thispos = { anchor, x, y }
 end)
 
-tracker:SetScript("OnUpdate", function()
+tracker:SetScript("OnUpdate", function(this)
   if WorldMapFrame:IsShown() then
     if this.strata ~= "FULLSCREEN_DIALOG" then
       this:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -116,7 +116,7 @@ tracker:SetScript("OnUpdate", function()
   end
 end)
 
-tracker:SetScript("OnShow", function()
+tracker:SetScript("OnShow", function(this)
   pfQuest_config["showtracker"] = "1"
 
   -- load tracker position if exists
@@ -169,7 +169,7 @@ do -- button panel
 
     if anchor == "TOPLEFT" then
       table.insert(buttons, b)
-      b:SetScript("OnClick", function()
+      b:SetScript("OnClick", function(this)
         if func then func() end
         for id, button in pairs(buttons) do
           button.icon:SetVertexColor(1,1,1)
@@ -217,9 +217,9 @@ do -- button panel
   end)
 end
 
-function tracker.ButtonEnter()
+function tracker.ButtonEnter(this)
   pfMap.highlight = this.title
-  ShowTooltip()
+  ShowTooltip(this)
 end
 
 function tracker.ButtonLeave()
@@ -227,7 +227,7 @@ function tracker.ButtonLeave()
   HideTooltip()
 end
 
-function tracker.ButtonUpdate()
+function tracker.ButtonUpdate(this)
   local alpha = tonumber((pfQuest_config["trackeralpha"] or .2)) or .2
 
   if not this.alpha or this.alpha ~= alpha then
@@ -238,8 +238,8 @@ function tracker.ButtonUpdate()
 
   if pfMap.highlight and pfMap.highlight == this.title then
     if not this.highlight then
-      this.bg:SetTexture(1,1,1,math.max(.2, alpha))
-      this.bg:SetAlpha(math.max(.5, alpha))
+      this.bg:SetTexture(1,1,1,math.max(.05, alpha))
+      this.bg:SetAlpha(math.max(.1, alpha))
       this.highlight = true
     end
   elseif this.highlight then
@@ -249,7 +249,7 @@ function tracker.ButtonUpdate()
   end
 end
 
-function tracker.ButtonClick()
+function tracker.ButtonClick(this, event, arg1)
   if arg1 == "RightButton" then
     for questid, data in pairs(pfQuest.questlog) do
       if data.title == this.title then
@@ -311,12 +311,11 @@ local function trackersort(a,b)
 end
 
 function tracker.ButtonEvent(self)
-  local self   = self or this
+  local self   = self or tracker
   local title  = self.title
   local node   = self.node
   local id     = self.id
   local qid    = self.questid
-
   self:SetHeight(0)
 
   -- we got an event on a hidden button
@@ -376,7 +375,6 @@ function tracker.ButtonEvent(self)
         end
       end
     end
-
     if cur == max or complete then
       cur, max = 1, 1
       percent = 100

@@ -11,7 +11,7 @@ local version, remote, major, minor, fix, displayed, available
 local versioncheck = CreateFrame("Frame")
 versioncheck:RegisterEvent("ADDON_LOADED")
 versioncheck:RegisterEvent("CHAT_MSG_ADDON")
-versioncheck:RegisterEvent("PARTY_MEMBERS_CHANGED")
+versioncheck:RegisterEvent("GROUP_ROSTER_UPDATE")
 versioncheck:RegisterEvent("PLAYER_ENTERING_WORLD")
 versioncheck:SetScript("OnEvent", function()
   if event == "ADDON_LOADED" then

@@ -15,11 +15,11 @@ local refloot = pfDB["refloot"]["data"]
 local quests = pfDB["quests"]["data"]
 local zones = pfDB["zones"]["loc"]
 
-local function ShowTooltip()
-  if not this.tooltips then return end
-  GameTooltip_SetDefaultAnchor(GameTooltip, this)
+local function ShowTooltip(self)
+  if not self.tooltips then return end
+  GameTooltip_SetDefaultAnchor(GameTooltip, self)
   GameTooltip:ClearLines()
-  for k, v in pairs(this.tooltips) do
+  for k, v in pairs(self.tooltips) do
     if k == 1 then
       GameTooltip:AddLine(v, 1, 1, 1)
     else
@@ -31,11 +31,11 @@ end
 
 local function EnableTooltips(frame, tooltips)
   frame.tooltips = tooltips
-  frame:SetScript("OnEnter", ShowTooltip)
+  frame:SetScript("OnEnter", function() ShowTooltip(frame) end)
   frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local function ResultButtonEnter()
+local function ResultButtonEnter(this)
   this.tex:SetTexture(1,1,1,.1)
 
   -- quest
@@ -101,7 +101,7 @@ local function ResultButtonEnter()
   end
 end
 
-local function ResultButtonUpdate()
+local function ResultButtonUpdate(this)
   this.refreshCount = this.refreshCount + 1
 
   if not this.itemColor then
@@ -128,7 +128,7 @@ local function ResultButtonUpdate()
   end
 end
 
-local function ResultButtonClick()
+local function ResultButtonClick(this)
   local meta = { ["addon"] = "PFDB" }
 
   if this.btype == "items" then
@@ -166,7 +166,7 @@ local function ResultButtonClick()
   end
 end
 
-local function ResultButtonClickFav()
+local function ResultButtonClickFav(this)
   local parent = this:GetParent()
   if pfBrowser_fav[parent.btype][parent.id] then
     pfBrowser_fav[parent.btype][parent.id] = nil
@@ -177,7 +177,7 @@ local function ResultButtonClickFav()
   end
 end
 
-local function ResultButtonLeave()
+local function ResultButtonLeave(this)
   if pfBrowser.selectState then
     pfBrowser.selectState = "clean"
   end
@@ -190,7 +190,7 @@ local function ResultButtonLeave()
   GameTooltip:Hide()
 end
 
-local function ResultButtonClickSpecial()
+local function ResultButtonClickSpecial(this)
   local param = this:GetParent()[this.parameter]
   local meta = { ["addon"] = "PFDB" }
   local maps = {}
@@ -207,7 +207,7 @@ local function ResultButtonClickSpecial()
   pfMap:ShowMapID(pfDatabase:GetBestMap(maps))
 end
 
-local function ResultButtonEnterSpecial()
+local function ResultButtonEnterSpecial(this)
   local id = this:GetParent().id
   local count = 0
   local skip = false
@@ -385,7 +385,7 @@ local function ResultButtonReload(self)
     self.text:SetText("|cffff5555[?] |cffffffff" .. self.name)
 
     self.refreshCount = 0
-    self:SetScript("OnUpdate", ResultButtonUpdate)
+    self:SetScript("OnUpdate", function() ResultButtonUpdate(self) end)
   end
 
   self.text:SetWidth(self.text:GetStringWidth())
@@ -460,18 +460,18 @@ local function ResultButtonCreate(i, resultType)
       f[button].icon:SetAllPoints(f[button])
       f[button].icon:SetTexture(pfQuestConfig.path.."\\img\\"..settings.icon)
 
-      f[button]:SetScript("OnEnter", ResultButtonEnterSpecial)
-      f[button]:SetScript("OnLeave", ResultButtonLeaveSpecial)
-      f[button]:SetScript("OnClick", ResultButtonClickSpecial)
+      f[button]:SetScript("OnEnter", function() ResultButtonEnterSpecial(f[button]) end)
+      f[button]:SetScript("OnLeave", function() ResultButtonLeaveSpecial(f[button]) end)
+      f[button]:SetScript("OnClick", function() ResultButtonClickSpecial(f[button]) end)
     end
   end
 
   -- bind functions
-  f.Reload = ResultButtonReload
-  f:SetScript("OnLeave", ResultButtonLeave)
-  f:SetScript("OnEnter", ResultButtonEnter)
-  f:SetScript("OnClick", ResultButtonClick)
-  f.fav:SetScript("OnClick", ResultButtonClickFav)
+  f.Reload = function() ResultButtonReload(f) end
+  f:SetScript("OnLeave", function() ResultButtonLeave(f) end)
+  f:SetScript("OnEnter", function() ResultButtonEnter(f) end)
+  f:SetScript("OnClick", function() ResultButtonClick(f) end)
+  f.fav:SetScript("OnClick", function() ResultButtonClickFav(f) end)
 
   return f
 end
@@ -528,13 +528,13 @@ local function CreateBrowseWindow(fname, name, parent, anchor, x, y)
   parent.tabs[fname]:Hide()
   parent.tabs[fname].buttons = { }
 
-  parent.tabs[fname].backdrop = CreateFrame("Frame", name .. "Backdrop", parent.tabs[fname])
+  parent.tabs[fname].backdrop = CreateFrame("Frame", name .. "Backdrop", parent.tabs[fname], "BackdropTemplate")
   parent.tabs[fname].backdrop:SetFrameLevel(1)
   parent.tabs[fname].backdrop:SetPoint("TOPLEFT", parent.tabs[fname], "TOPLEFT", -5, 5)
   parent.tabs[fname].backdrop:SetPoint("BOTTOMRIGHT", parent.tabs[fname], "BOTTOMRIGHT", 5, -5)
   pfUI.api.CreateBackdrop(parent.tabs[fname].backdrop, nil, true)
 
-  parent.tabs[fname].button = CreateFrame("Button", name .. "Button", parent)
+  parent.tabs[fname].button = CreateFrame("Button", name .. "Button", parent, "BackdropTemplate")
   parent.tabs[fname].button:SetPoint(anchor, x, y)
   parent.tabs[fname].button:SetWidth(153)
   parent.tabs[fname].button:SetHeight(30)
@@ -570,7 +570,7 @@ local function CreateBrowseWindow(fname, name, parent, anchor, x, y)
 end
 
 -- browser window
-pfBrowser = CreateFrame("Frame", "pfQuestBrowser", UIParent)
+pfBrowser = CreateFrame("Frame", "pfQuestBrowser", UIParent, "BackdropTemplate")
 pfBrowser:Hide()
 pfBrowser:SetWidth(640)
 pfBrowser:SetHeight(480)
@@ -604,16 +604,16 @@ pfBrowser:SetScript("OnEvent", function()
   end
 end)
 pfBrowser:SetScript("OnMouseDown",function()
-  this:StartMoving()
+  pfBrowser:StartMoving()
 end)
 
 pfBrowser:SetScript("OnMouseUp",function()
-  this:StopMovingOrSizing()
+  pfBrowser:StopMovingOrSizing()
 end)
 
 pfBrowser:SetScript("OnUpdate", function()
   -- multi-select handling
-  if not this.selectState and IsControlKeyDown() and GetMouseFocus() and GetMouseFocus().pfResultButton then
+  if not pfBrowser.selectState and IsControlKeyDown() and GetMouseFocus() and GetMouseFocus().pfResultButton then
     for id, frame in pairs(pfBrowser.tabs) do
       for id, button in pairs(frame.buttons) do
         if button.name == GetMouseFocus().name then
@@ -621,9 +621,9 @@ pfBrowser:SetScript("OnUpdate", function()
         end
       end
     end
-    this.selectState = "active"
+    pfBrowser.selectState = "active"
 
-  elseif this.selectState and (this.selectState == "clean" or not IsControlKeyDown()) then
+  elseif pfBrowser.selectState and (pfBrowser.selectState == "clean" or not IsControlKeyDown()) then
     for id, frame in pairs(pfBrowser.tabs) do
       for id, button in pairs(frame.buttons) do
         if compat.mod(button:GetID(),2) == 1 then
@@ -633,7 +633,7 @@ pfBrowser:SetScript("OnUpdate", function()
         end
       end
     end
-    this.selectState = nil
+    pfBrowser.selectState = nil
   end
 end)
 
@@ -647,7 +647,7 @@ pfBrowser.title:SetJustifyH("LEFT")
 pfBrowser.title:SetFont(pfUI.font_default, 14)
 pfBrowser.title:SetText("|cff33ffccpf|rQuest")
 
-pfBrowser.close = CreateFrame("Button", "pfQuestBrowserClose", pfBrowser)
+pfBrowser.close = CreateFrame("Button", "pfQuestBrowserClose", pfBrowser, "BackdropTemplate")
 pfBrowser.close:SetPoint("TOPRIGHT", -5, -5)
 pfBrowser.close:SetHeight(20)
 pfBrowser.close:SetWidth(20)
@@ -658,7 +658,7 @@ pfBrowser.close.texture:SetVertexColor(1,.25,.25,1)
 pfBrowser.close.texture:SetPoint("TOPLEFT", pfBrowser.close, "TOPLEFT", 4, -4)
 pfBrowser.close.texture:SetPoint("BOTTOMRIGHT", pfBrowser.close, "BOTTOMRIGHT", -4, 4)
 pfBrowser.close:SetScript("OnClick", function()
-  this:GetParent():Hide()
+  pfBrowser:Hide()
 end)
 EnableTooltips(pfBrowser.close, {
   pfQuest_Loc["Close"],
@@ -666,7 +666,7 @@ EnableTooltips(pfBrowser.close, {
 })
 pfUI.api.SkinButton(pfBrowser.close, 1, .5, .5)
 
-pfBrowser.journal = CreateFrame("Button", "pfQuestJournalOpen", pfBrowser)
+pfBrowser.journal = CreateFrame("Button", "pfQuestJournalOpen", pfBrowser, "BackdropTemplate")
 pfBrowser.journal:SetPoint("TOPRIGHT", -30, -5)
 pfBrowser.journal:SetHeight(20)
 pfBrowser.journal:SetWidth(20)
@@ -684,7 +684,7 @@ EnableTooltips(pfBrowser.journal, {
 })
 pfUI.api.SkinButton(pfBrowser.journal)
 
-pfBrowser.clean = CreateFrame("Button", "pfQuestBrowserClean", pfBrowser)
+pfBrowser.clean = CreateFrame("Button", "pfQuestBrowserClean", pfBrowser, "BackdropTemplate")
 pfBrowser.clean:SetPoint("TOPRIGHT", pfBrowser, "TOPRIGHT", -5, -30)
 pfBrowser.clean:SetPoint("BOTTOMRIGHT", pfBrowser, "TOPRIGHT", 0, -55)
 pfBrowser.clean:SetScript("OnClick", function()
@@ -710,7 +710,7 @@ CreateBrowseWindow("quests", "pfQuestBrowserQuests", pfBrowser, "BOTTOMRIGHT", -
 
 SelectView(pfBrowser.tabs["units"])
 
-pfBrowser.input = CreateFrame("EditBox", "pfQuestBrowserSearch", pfBrowser)
+pfBrowser.input = CreateFrame("EditBox", "pfQuestBrowserSearch", pfBrowser, "BackdropTemplate")
 pfBrowser.input:SetFont(pfUI.font_default, pfUI_config.global.font_size, "OUTLINE")
 pfBrowser.input:SetFontObject("GameFontDisable")
 pfBrowser.input:SetAutoFocus(false)
@@ -739,18 +739,18 @@ pfBrowser.input.clearButton.texture:SetWidth(17)
 pfBrowser.input.clearButton.texture:SetAlpha(0.5)
 pfBrowser.input.clearButton.texture:SetPoint("TOPLEFT", pfBrowser.input.clearButton, "TOPLEFT", 0, 0)
 pfBrowser.input.clearButton:SetScript("OnEnter", function()
-  this.texture:SetAlpha(1.0)
+  pfBrowser.input.clearButton.texture:SetAlpha(1.0)
 end)
 pfBrowser.input.clearButton:SetScript("OnLeave", function()
-  this.texture:SetAlpha(0.5)
+  pfBrowser.input.clearButton.texture:SetAlpha(0.5)
 end)
 pfBrowser.input.clearButton:SetScript("OnMouseDown", function()
-  if this:IsEnabled() then
-    this.texture:SetPoint("TOPLEFT", this, "TOPLEFT", 1, -1)
+  if pfBrowser.input.clearButton:IsEnabled() then
+    pfBrowser.input.clearButton.texture:SetPoint("TOPLEFT", pfBrowser.input.clearButton, "TOPLEFT", 1, -1)
   end
 end)
 pfBrowser.input.clearButton:SetScript("OnMouseUp", function()
-  this.texture:SetPoint("TOPLEFT", this, "TOPLEFT", 0, 0)
+  pfBrowser.input.clearButton.texture:SetPoint("TOPLEFT", pfBrowser.input.clearButton, "TOPLEFT", 0, 0)
 end)
 pfBrowser.input.clearButton:SetScript("OnClick", function()
   PlaySound("igMainMenuOptionCheckBoxOn")
@@ -765,29 +765,29 @@ pfBrowser.input.clearButton:SetScript("OnClick", function()
   pfBrowser.input:ClearFocus()
 end)
 
-pfBrowser.input:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-pfBrowser.input:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+pfBrowser.input:SetScript("OnEscapePressed", function() pfBrowser.input:ClearFocus() end)
+pfBrowser.input:SetScript("OnEnterPressed", function() pfBrowser.input:ClearFocus() end)
 pfBrowser.input:SetScript("OnEditFocusGained", function()
-  this:HighlightText()
-  this:SetFontObject("GameFontWhite")
-  this.searchIcon:SetVertexColor(1.0, 1.0, 1.0)
-  if this:GetText() == pfQuest_Loc["Search"] then this:SetText("") end
-  this.clearButton:Show()
+  pfBrowser.input:HighlightText()
+  pfBrowser.input:SetFontObject("GameFontWhite")
+  pfBrowser.input.searchIcon:SetVertexColor(1.0, 1.0, 1.0)
+  if pfBrowser.input:GetText() == pfQuest_Loc["Search"] then this:SetText("") end
+  pfBrowser.input.clearButton:Show()
 end)
 
 pfBrowser.input:SetScript("OnEditFocusLost", function()
-  this:HighlightText(0, 0)
-  this:SetFontObject("GameFontDisable")
-  this.searchIcon:SetVertexColor(0.6, 0.6, 0.6)
-  if this:GetText() == "" then
-    this:SetText(pfQuest_Loc["Search"])
-    this.clearButton:Hide()
+  pfBrowser.input:HighlightText(0, 0)
+  pfBrowser.input:SetFontObject("GameFontDisable")
+  pfBrowser.input.searchIcon:SetVertexColor(0.6, 0.6, 0.6)
+  if pfBrowser.input:GetText() == "" then
+    pfBrowser.input:SetText(pfQuest_Loc["Search"])
+    pfBrowser.input.clearButton:Hide()
   end
 end)
 
 -- This script updates all the search tabs when the search text changes
 pfBrowser.input:SetScript("OnTextChanged", function()
-  local text = this:GetText()
+  local text = pfBrowser.input:GetText()
   if (text == pfQuest_Loc["Search"]) then text = "" end
 
   local custom = string.find(text, "^custom:")

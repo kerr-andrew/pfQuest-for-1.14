@@ -17,14 +17,8 @@ local GetQuestLogTitle = CT_QuestLevels_oldGetQuestLogTitle or GetQuestLogTitle
 
 -- tbc+wotlk: change behaviour of later expansions to the vanilla one
 pfQuestCompat.GetQuestLogTitle = function(id)
-  local title, level, tag, group, header, collapsed, complete, daily, _
-  if client <= 11200 then -- vanilla
-    title, level, tag, header, collapsed, complete = GetQuestLogTitle(id)
-  elseif client > 11200 then -- tbc & wotlk
-    title, level, tag, group, header, collapsed, complete, daily = GetQuestLogTitle(id)
-  end
-
-  return title, level, tag, header, collapsed, complete
+  local title, level, group, header, collapsed, complete = GetQuestLogTitle(id)
+  return title, level, group, header, collapsed, complete
 end
 
 -- wotlk: changed from GetDifficultyColor to GetQuestDifficultyColor in 3.2
@@ -46,17 +40,17 @@ end
 
 -- vanilla+tbc+wotlk: base function to insert quest links to the chat
 pfQuestCompat.InsertQuestLink = function(questid, name)
+  if not getglobal("ACTIVE_CHAT_EDIT_BOX") then return end
   local questid = questid or 0
   local fallback = name or UNKNOWN
   local level = pfDB["quests"]["data"][questid] and pfDB["quests"]["data"][questid]["lvl"] or 0
   local name = pfDB["quests"]["loc"][questid] and pfDB["quests"]["loc"][questid]["T"] or fallback
   local hex = pfUI.api.rgbhex(pfQuestCompat.GetDifficultyColor(level))
 
-  ChatFrameEditBox:Show()
   if pfQuest_config["questlinks"] == "1" then
-    ChatFrameEditBox:Insert(hex .. "|Hquest:" .. questid .. ":" .. level .. "|h[" .. name .. "]|h|r")
+    ACTIVE_CHAT_EDIT_BOX:Insert(hex .. "|Hquest:" .. questid .. ":" .. level .. "|h[" .. name .. "]|h|r")
   else
-    ChatFrameEditBox:Insert("[" .. name .. "]")
+    ACTIVE_CHAT_EDIT_BOX:Insert("[" .. name .. "]")
   end
 end
 
@@ -69,6 +63,11 @@ for k, v in pairs({Minimap:GetChildren()}) do
       break
     end
   end
+end
+
+-- always keep player arrow on top
+if minimaparrow then
+  minimaparrow:SetFrameLevel(8)
 end
 
 -- vanilla+tbc: return the player facing based on the minimap arrow

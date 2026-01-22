@@ -14,12 +14,12 @@ do -- minimap icon
 
   pfQuestIcon:SetScript("OnDragStart", function()
     if IsShiftKeyDown() then
-      this:StartMoving()
+      pfQuestIcon:StartMoving()
     end
   end)
 
   pfQuestIcon:SetScript("OnDragStop", function()
-    this:StopMovingOrSizing()
+    pfQuestIcon:StopMovingOrSizing()
   end)
 
   pfQuestIcon:SetScript("OnClick", function()
@@ -31,7 +31,7 @@ do -- minimap icon
   end)
 
   pfQuestIcon:SetScript("OnEnter", function()
-    GameTooltip:SetOwner(this, ANCHOR_BOTTOMLEFT)
+    GameTooltip:SetOwner(pfQuestIcon, ANCHOR_BOTTOMLEFT)
     GameTooltip:SetText("|cff33ffccpf|rQuest", 1, 1, 1, 1)
     GameTooltip:AddDoubleLine(pfQuest_Loc["Left-Click"], pfQuest_Loc["Shortcut Menu"], 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine(pfQuest_Loc["Shift-Click"], pfQuest_Loc["Move Button"], 1, 1, 1, 1, 1, 1)
@@ -40,6 +40,15 @@ do -- minimap icon
 
   pfQuestIcon:SetScript("OnLeave", function()
     GameTooltip:Hide()
+  end)
+
+  pfQuestIcon:RegisterEvent("PLAYER_ENTERING_WORLD")
+  pfQuestIcon:SetScript("OnEvent", function()
+    if pfQuest_config["minimapbutton"] == "0" then
+      pfQuestIcon:Hide()
+    else
+      pfQuestIcon:Show()
+    end
   end)
 
   pfQuestIcon.icon = pfQuestIcon:CreateTexture(nil, 'BACKGROUND')
@@ -57,17 +66,17 @@ do -- minimap icon
 end
 
 do -- tracking menu
-  local function MenuButtonEnter()
+  local function MenuButtonEnter(this)
     this.title:SetTextColor(1,.8,0)
     this.highlight:Show()
   end
 
-  local function MenuButtonLeave()
+  local function MenuButtonLeave(this)
     this.title:SetTextColor(1,1,1)
     this.highlight:Hide()
   end
 
-  local function MenuButtonClick()
+  local function MenuButtonClick(this)
     this.state = this.check and not this.check:GetChecked()
 
     if this.check then
@@ -83,7 +92,7 @@ do -- tracking menu
 
   local function CreateMenu(data, name)
     local top, width = 4, 0
-    local frame = CreateFrame("Frame", name, UIParent)
+    local frame = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
     frame:SetFrameStrata("DIALOG")
     frame:SetClampedToScreen(true)
     frame:Hide()
@@ -148,7 +157,7 @@ do -- tracking menu
           frame[name].check:SetHeight(20)
           frame[name].check:SetScale(.6)
           frame[name].check:EnableMouse(false)
-          pfUI.api.CreateBackdrop(frame[name].check, nil, true)
+          pfUI.api.CreateBackdrop(frame[name].check, nil, false)
         end
 
         -- save maximum menu width
@@ -166,7 +175,7 @@ do -- tracking menu
     -- the usual menu hide events
     table.insert(UIMenus, name)
     frame:RegisterEvent("CURSOR_UPDATE")
-    frame:SetScript("OnEvent", function() this:Hide() end)
+    frame:SetScript("OnEvent", function() frame:Hide() end)
 
     return frame
   end
@@ -202,7 +211,7 @@ do -- tracking menu
   }
 
   pfQuestMenu = CreateMenu(menu, "pfQuestMenu")
-  pfQuestMenu:SetScript("OnShow", function()
+  pfQuestMenu:SetScript("OnShow", function(this)
     -- create shortcuts
     local anchor = this.anchor or pfQuestIcon
     local config = pfQuest_track

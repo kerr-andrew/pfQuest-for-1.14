@@ -13,7 +13,7 @@ local compatnamefake = CreateFrame("Frame")
 compatnamefake:RegisterEvent("PLAYER_ENTERING_WORLD")
 compatnamefake:SetScript("OnEvent", function()
   -- only run once on login
-  this:UnregisterAllEvents()
+  compatnamefake:UnregisterAllEvents()
 
   -- scan through all addons to identify button collectors
   for i=1, GetNumAddOns() do
@@ -29,7 +29,7 @@ end)
 -- it also only updates the key if the mouse is over a relevant frame
 local controlkey = CreateFrame("Frame", "pfQuestControlKey", UIParent)
 controlkey:SetScript("OnUpdate", function()
-  if ( this.throttle or .2) > GetTime() then return else this.throttle = GetTime() + .2 end
+  if ( controlkey.throttle or .2) > GetTime() then return else controlkey.throttle = GetTime() + .2 end
   if WorldMapFrame:IsShown() and MouseIsOver(WorldMapFrame) or MouseIsOver(pfMap.drawlayer) then
     controlkey.pressed = IsControlKeyDown()
   end
@@ -105,7 +105,7 @@ local function minimap_indoor()
 		end
 	end
 
-	if GetCVar("minimapInsideZoom")+0 == pfMap.drawlayer:GetZoom() then
+  if GetCVar("minimapInsideZoom")+0 == pfMap.drawlayer:GetZoom() then
     state = 0
   end
 
@@ -185,6 +185,24 @@ for k, v in pairs({WorldMapFrame:GetChildren()}) do
   end
 end
 
+local function GetCurrentMapContinent()
+    local map = C_Map.GetMapInfo(C_Map.GetBestMapForUnit("player"))
+    return map.parentMapID
+end
+
+local function GetCurrentMapZone()
+    return C_Map.GetBestMapForUnit("player")
+end
+
+local function GetMapZones(cid)
+    local children = C_Map.GetMapChildrenInfo(cid, nil, true)
+    local zones = {}
+    for _, child in pairs(children) do
+        zones[#zones + 1] = child.name
+    end
+    return unpack(zones)
+end
+
 pfMap = CreateFrame("Frame", "pfQuestMap", WorldFrame)
 pfMap.str2rgb = str2rgb
 pfMap.tooltips = {}
@@ -209,7 +227,7 @@ pfMap.tooltip:SetScript("OnShow", function()
   if pfQuest_config.showtooltips == "0" then return end
 
   local name = getglobal("GameTooltipTextLeft1") and getglobal("GameTooltipTextLeft1"):GetText() or "__NONE__"
-  local zone = pfMap:GetMapID(GetCurrentMapContinent(), GetCurrentMapZone())
+  local zone = pfMap:GetMapID()
 
   -- remove all colors from received tooltip text
   name = string.gsub(name, "|c%x%x%x%x%x%x%x%x", "")
@@ -430,10 +448,10 @@ end
 function pfMap:SetMapByID(id)
   local search = pfDB["zones"]["loc"][id]
 
-  for cid, cname in pairs({GetMapContinents()}) do
-    for mid, mname in pairs({GetMapZones(cid)}) do
+  for _, continent in pairs(C_Map.GetMapChildrenInfo(947, Enum.UIMapType.Continent, true)) do
+    for mid, mname in pairs(C_Map.GetMapChildrenInfo(continent.mapID, Enum.UIMapType.Zone, true)) do
       if mname == search then
-        SetMapZoom(cid, mid)
+        WorldMapFrame:SetMapID(mid)
         return
       end
     end
@@ -444,24 +462,10 @@ local customids = {
   ["AlteracValley"] = 2597,
 }
 
-local map_zone_cache = { }
-function pfMap:GetMapID(cid, mid)
-  cid = cid or GetCurrentMapContinent()
-  mid = mid or GetCurrentMapZone()
-
-  -- GetMapZones() should always return the same amount
-  -- of zones for each continent, so we can cache it to
-  -- avoid further creations of the same table.
-  if not map_zone_cache[cid] then
-    map_zone_cache[cid] = { GetMapZones(cid) }
-  end
-
-  local list = map_zone_cache[cid]
-  local name = list[mid]
+function pfMap:GetMapID()
+  local name = GetRealZoneText()
   local id = pfMap:GetMapIDByName(name)
-  id = id or customids[GetMapInfo()]
-
-  return id
+  return id or customids[name]
 end
 
 function pfMap:AddNode(meta)
@@ -604,7 +608,7 @@ function pfMap:DeleteNode(addon, title)
   pfMap.queue_update = GetTime()
 end
 
-function pfMap:NodeClick()
+function pfMap:NodeClick(this)
   if IsShiftKeyDown() then
     if this.questid and this.texture and this.layer < 5 then
       -- mark questnode as done
@@ -633,13 +637,13 @@ function pfMap:NodeClick()
   end
 end
 
-function pfMap:NodeEnter()
+function pfMap:NodeEnter(this)
   -- wotlk: need to disable blop tooltips first
   if compat.client >= 30300 then
     WorldMapPOIFrame.allowBlobTooltip = false
   end
 
-  local tooltip = this:GetParent() == WorldMapButton and WorldMapTooltip or GameTooltip
+  local tooltip = this:GetParent() == WorldMapFrameButton and WorldMapTooltip or GameTooltip
   tooltip:SetOwner(this, "ANCHOR_LEFT")
   this.spawn = this.spawn or UNKNOWN
   tooltip:SetText(this.spawn..(pfQuest_config.showids == "1" and " |cffcccccc("..this.spawnid..")|r" or ""), .3, 1, .8)
@@ -673,21 +677,20 @@ function pfMap:NodeEnter()
   pfMap.highlight = pfQuest_config["mouseover"] == "1" and this.title
 end
 
-function pfMap:NodeLeave()
+function pfMap:NodeLeave(this)
   -- wotlk: re-enable blop tooltips
   if compat.client >= 30300 then
     WorldMapPOIFrame.allowBlobTooltip = true
   end
 
-  local tooltip = this:GetParent() == WorldMapButton and WorldMapTooltip or GameTooltip
+  local tooltip = this:GetParent() == WorldMapFrameButton and WorldMapTooltip or GameTooltip
   tooltip:Hide()
   pfMap.highlight = nil
 end
 
 function pfMap:BuildNode(name, parent)
   local f = CreateFrame("Button", name, parent)
-
-  if parent == WorldMapButton then
+  if parent == WorldMapFrame then
     f.defalpha = tonumber(pfQuest_config["worldmaptransp"]) or 1
     f.defsize = 16
   else
@@ -700,8 +703,8 @@ function pfMap:BuildNode(name, parent)
   f:SetHeight(f.defsize)
 
   f.Animate = NodeAnimate
-  f:SetScript("OnEnter", pfMap.NodeEnter)
-  f:SetScript("OnLeave", pfMap.NodeLeave)
+  f:SetScript("OnEnter", function() pfMap:NodeEnter(f) end)
+  f:SetScript("OnLeave", function() pfMap:NodeLeave(f) end)
 
   f.tex = f:CreateTexture(nil, "BACKGROUND")
   f.tex:SetAllPoints(f)
@@ -832,7 +835,8 @@ function pfMap:UpdateNode(frame, node, color, obj, distance)
   end
 
   if frame.updateTexture or frame.updateVertex or frame.updateColor or frame.updateLayer then
-    frame:SetScript("OnClick", (frame.func or pfMap.NodeClick))
+    local fn = frame.func or pfMap.NodeClick
+    frame:SetScript("OnClick", function() fn(pfMap, frame) end)
   end
 
   local highlight = frame.texture and pfMap.highlightdb[frame][pfMap.highlight] and true or nil
@@ -857,7 +861,8 @@ function pfMap:UpdateNodes()
   pfQuest:Debug("Update Nodes")
 
   local color = pfQuest_config["spawncolors"] == "1" and "spawn" or "title"
-  local map = pfMap:GetMapID(GetCurrentMapContinent(), GetCurrentMapZone())
+  local mapname = C_Map.GetMapInfo(WorldMapFrame:GetMapID() or C_Map.GetBestMapForUnit("player")).name
+  local map = pfMap:GetMapIDByName(mapname)
   local i = 1
 
   -- reset tracker
@@ -871,11 +876,10 @@ function pfMap:UpdateNodes()
     if pfMap.nodes[addon][map] then
       for coords, node in pairs(pfMap.nodes[addon][map]) do
         if not pfMap.pins[i] then
-          pfMap.pins[i] = pfMap:BuildNode("pfMapPin" .. i, WorldMapButton)
+          pfMap.pins[i] = pfMap:BuildNode("pfMapPin" .. i, WorldMapFrame)
         end
 
         pfMap:UpdateNode(pfMap.pins[i], node, color)
-
         -- set position
         local _, _, x, y = strfind(coords, "(.*)|(.*)")
 
@@ -901,11 +905,11 @@ function pfMap:UpdateNodes()
             pfQuest.tracker.ButtonAdd(title, node)
           end
 
-          x = x / 100 * WorldMapButton:GetWidth()
-          y = y / 100 * WorldMapButton:GetHeight()
+          x = x / 100 * WorldMapFrame.ScrollContainer:GetWidth()
+          y = y / 100 * WorldMapFrame.ScrollContainer:GetHeight()
 
           pfMap.pins[i]:ClearAllPoints()
-          pfMap.pins[i]:SetPoint("CENTER", WorldMapButton, "TOPLEFT", x, -y)
+          pfMap.pins[i]:SetPoint("CENTER", WorldMapFrame.ScrollContainer, "TOPLEFT", x, -y)
 
           pfMap.pins[i]:Show()
         end
@@ -923,6 +927,7 @@ end
 
 local coord_cache = {}
 function pfMap:UpdateMinimap()
+    local this = pfMap
   -- check for disabled minimap nodes
   if pfQuest_config["minimapnodes"] == "0" then
     return
@@ -940,7 +945,11 @@ function pfMap:UpdateMinimap()
   end
 
   -- hide nodes and skip further processing in dungeons
-  local xPlayer, yPlayer = GetPlayerMapPosition("player")
+  local map = C_Map.GetBestMapForUnit("player")
+
+  local position = map ~= nil and C_Map.GetPlayerMapPosition(map, "player") or { GetXY = function() return 0, 0 end }
+  local xPlayer, yPlayer = position:GetXY()
+
   if xPlayer == 0 and yPlayer == 0 then
     for pins, pin in pairs(pfMap.mpins) do pin:Hide() end
     return
@@ -1030,6 +1039,7 @@ function pfMap:UpdateMinimap()
     end
   end
 
+
   -- hide remaining pins
   for j=i, table.getn(pfMap.mpins) do
     if pfMap.mpins[j] then pfMap.mpins[j]:Hide() end
@@ -1039,23 +1049,26 @@ end
 local zone, last_zone
 pfMap:RegisterEvent("ZONE_CHANGED")
 pfMap:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-pfMap:RegisterEvent("MINIMAP_ZONE_CHANGED")
-pfMap:RegisterEvent("WORLD_MAP_UPDATE")
+pfMap:RegisterEvent("ZONE_CHANGED_INDOORS")
+
+hooksecurefunc(WorldMapFrame, "OnMapChanged", function(...)
+      -- TODO: quest tracker not fully updated until map open, failed attempt here
+    zone = WorldMapFrame:GetMapID()
+    if last_zone ~= zone then
+        pfMap:UpdateNodes()
+        last_zone = zone
+    end
+end)
+
 pfMap:SetScript("OnEvent", function()
   -- save current zone
   zone = GetCurrentMapZone()
 
   -- set map to current zone when possible
-  if event == "ZONE_CHANGED" or event == "MINIMAP_ZONE_CHANGED" or event == "ZONE_CHANGED_NEW_AREA" then
+  if event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then
     if not WorldMapFrame:IsShown() then
-      SetMapToCurrentZone()
+      WorldMapFrame:SetMapID(zone)
     end
-  end
-
-  -- update nodes on world map changes
-  if event == "WORLD_MAP_UPDATE" and last_zone ~= zone then
-    pfMap.UpdateNodes()
-    last_zone = zone
   end
 end)
 
@@ -1089,7 +1102,7 @@ pfMap:SetScript("OnUpdate", function()
   end
 
   -- limit all map updates to once per .05 seconds
-  if ( this.throttle or .2) > GetTime() then return else this.throttle = GetTime() + .05 end
+  if ( pfMap.throttle or .2) > GetTime() then return else pfMap.throttle = GetTime() + .05 end
 
   -- process node updates if required
   if pfMap.queue_update and pfMap.queue_update + .25 < GetTime() then
@@ -1101,7 +1114,7 @@ pfMap:SetScript("OnUpdate", function()
   if WorldMapFrame:IsShown() then
     resetmap = true
   elseif resetmap == true then
-    SetMapToCurrentZone()
+    WorldMapFrame:SetMapID(GetCurrentMapZone() or 947)
     resetmap = nil
   end
 
@@ -1146,3 +1159,93 @@ if compat.client >= 30300 then
     end
   end
 end
+
+local function HookScript(f, script, func)
+    local previous = f:GetScript(script)
+    f:SetScript(script, function(...)
+        if previous then previous(...) end
+        func(...)
+    end)
+end
+
+function pfMap:EnableWorldMapInWindow()
+    table.insert(UISpecialFrames, "WorldMapFrame")
+
+    function _G.ToggleWorldMap()
+        if WorldMapFrame:IsShown() then
+            WorldMapFrame:Hide()
+        else
+            WorldMapFrame:Show()
+        end
+    end
+
+    local hooked = false
+    -- do not load if other map addon is loaded
+    if Cartographer then return end
+    if METAMAP_TITLE then return end
+
+    UIPanelWindows["WorldMapFrame"] = { area = "center" }
+
+    -- make sure the hooks get only applied once
+    if not hooked then
+        hooked = true
+        HookScript(WorldMapFrame, "OnShow", function()
+            -- customize
+            WorldMapFrame:EnableKeyboard(false)
+            WorldMapFrame:EnableMouseWheel(1)
+
+            -- set back to default scale
+            WorldMapFrame:SetScale(.85)
+        end)
+
+        HookScript(WorldMapFrame, "OnMouseWheel", function(self, arg1)
+
+            if IsShiftKeyDown() then
+            WorldMapFrame:SetAlpha(WorldMapFrame:GetAlpha() + arg1/10)
+            elseif IsControlKeyDown() then
+            WorldMapFrame:SetScale(WorldMapFrame:GetScale() + arg1/10)
+            end
+        end)
+
+        HookScript(WorldMapFrame, "OnMouseDown",function()
+            WorldMapFrame:StartMoving()
+        end)
+
+        HookScript(WorldMapFrame, "OnMouseUp",function()
+            WorldMapFrame:StopMovingOrSizing()
+        end)
+    end
+
+    WorldMapFrame:SetMovable(true)
+    WorldMapFrame:EnableMouse(true)
+
+    WorldMapFrame:SetScale(.85)
+    WorldMapFrame:ClearAllPoints()
+    WorldMapFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 30)
+
+    WorldMapFrame.BlackoutFrame:Hide()
+    WorldMapFrame.ScrollContainer.GetCursorPosition = function(f)
+        local x,y = MapCanvasScrollControllerMixin.GetCursorPosition(f);
+        local s = WorldMapFrame:GetScale();
+        return x/s, y/s;
+    end
+end
+pfMap:RegisterEvent("PLAYER_ENTERING_WORLD")
+pfMap:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_ENTERING_WORLD" then
+        local map = C_Map.GetBestMapForUnit("player")
+        WorldMapFrame:SetMapID(map or 947)   
+        local tempFrame = CreateFrame("Frame")
+        local runOnce = false
+        tempFrame:SetScript("OnUpdate", function()
+            if not runOnce then
+                pfMap:UpdateNodes()
+                tempFrame:Hide()
+                runOnce = true
+            end
+        end)
+        if pfQuest_config["worldmapwindow"] == "1" then
+            pfMap:EnableWorldMapInWindow()
+        end
+    end
+end)

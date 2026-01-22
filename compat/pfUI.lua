@@ -124,12 +124,12 @@ pfUI.api.CreateBackdrop = pfUI.api.CreateBackdrop or function(f, inset, legacy, 
 
   -- use new backdrop behaviour
   if not f.backdrop then
-    f:SetBackdrop(nil)
+    if f.SetBackdrop then f:SetBackdrop(nil) end
 
     local border = tonumber(border) - 1
     local backdrop = pfUI.backdrop
     if border < 1 then backdrop = pfUI.backdrop_small end
-  	local b = CreateFrame("Frame", nil, f)
+  	local b = CreateFrame("Frame", nil, f, "BackdropTemplate")
   	b:SetPoint("TOPLEFT", f, "TOPLEFT", -border, border)
   	b:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", border, -border)
 
@@ -195,7 +195,7 @@ pfUI.api.CreateScrollFrame = pfUI.api.CreateScrollFrame or function(name, parent
   f.slider:SetScript("OnValueChanged", function()
     if selfevent then return end
     selfevent = true
-    f:SetVerticalScroll(this:GetValue())
+    f:SetVerticalScroll(f.slider:GetValue())
     f.UpdateScrollState()
     selfevent = false
   end)
@@ -236,8 +236,8 @@ pfUI.api.CreateScrollFrame = pfUI.api.CreateScrollFrame or function(name, parent
   end
 
   f:EnableMouseWheel(1)
-  f:SetScript("OnMouseWheel", function()
-    this:Scroll(arg1*10)
+  f:SetScript("OnMouseWheel", function(self, event, arg1)
+    f:Scroll(arg1*10)
   end)
 
   return f
@@ -254,7 +254,7 @@ pfUI.api.CreateScrollChild = pfUI.api.CreateScrollChild or function(name, parent
   parent:SetScrollChild(f)
 
   f:SetScript("OnUpdate", function()
-    this:GetParent():UpdateScrollState()
+    f:GetParent():UpdateScrollState()
   end)
 
   return f

@@ -160,7 +160,7 @@ local function ReloadJournal(self)
 end
 
 -- browser window
-pfJournal = CreateFrame("Frame", "pfQuestJournal", UIParent)
+pfJournal = CreateFrame("Frame", "pfQuestJournal", UIParent, "BackdropTemplate")
 pfJournal:Hide()
 pfJournal:SetWidth(340)
 pfJournal:SetHeight(520)
@@ -186,7 +186,7 @@ pfJournal.title:SetJustifyH("LEFT")
 pfJournal.title:SetFont(pfUI.font_default, 14)
 pfJournal.title:SetText("|cff33ffccpf|rQuest " .. pfQuest_Loc["Journal"])
 
-pfJournal.close = CreateFrame("Button", "pfQuestJournalClose", pfJournal)
+pfJournal.close = CreateFrame("Button", "pfQuestJournalClose", pfJournal, "BackdropTemplate")
 pfJournal.close:SetPoint("TOPRIGHT", -5, -5)
 pfJournal.close:SetHeight(20)
 pfJournal.close:SetWidth(20)
@@ -199,20 +199,20 @@ pfJournal.close.texture:SetPoint("TOPLEFT", pfJournal.close, "TOPLEFT", 4, -4)
 pfJournal.close.texture:SetPoint("BOTTOMRIGHT", pfJournal.close, "BOTTOMRIGHT", -4, 4)
 pfUI.api.SkinButton(pfJournal.close, 1, .5, .5)
 
-pfJournal.entries = CreateFrame("Button", "pfQuestJournalEntries", pfJournal)
+pfJournal.entries = CreateFrame("Button", "pfQuestJournalEntries", pfJournal, "BackdropTemplate")
 pfJournal.entries.ReloadJournal = ReloadJournal
 pfJournal.entries:EnableMouseWheel(true)
 pfJournal.entries:SetPoint("TOPLEFT", pfJournal, "TOPLEFT", 10, -35)
 pfJournal.entries:SetPoint("BOTTOMRIGHT", pfJournal, "BOTTOMRIGHT", -10, 10)
-pfJournal.entries:SetScript("OnMouseWheel", function()
-  this.offset = this.offset and this.offset - arg1 or 0
-  this:ReloadJournal()
+pfJournal.entries:SetScript("OnMouseWheel", function(self, event, arg1)
+  pfJournal.entries.offset = pfJournal.entries.offset and pfJournal.entries.offset - arg1 or 0
+  pfJournal.entries:ReloadJournal()
 end)
 
 pfJournal.entries:SetScript("OnClick", pfJournal.entries.ReloadJournal)
 pfJournal.entries:SetScript("OnUpdate", function()
-  if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-  this:ReloadJournal()
+  if (pfJournal.entries.tick or 1) > GetTime() then return else pfJournal.entries.tick = GetTime() + 1 end
+  pfJournal.entries:ReloadJournal()
 end)
 
 pfUI.api.CreateBackdrop(pfJournal.entries)

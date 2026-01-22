@@ -1,3 +1,8 @@
+# Modified pfQuest 
+This is a fork of pfQuest 7.0.1 modified for 1.14.2 client, primarily used on the wow-hc server. There are no guarantees I will keep this up to date with newer pfQuest versions, nor can I guarantee any bug fixes. 
+
+If you do have any bugs report, you can send them in [GitHub Issues](https://github.com/kerr-andrew/pfQuest-1.14/issues). Please check to make sure your bug is not already reported. 
+
 # pfQuest
 <img src="https://raw.githubusercontent.com/shagu/ShaguAddons/master/_img/pfQuest/mode.png" float="right" align="right" width="25%">
 

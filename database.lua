@@ -176,7 +176,7 @@ pfDatabase.tracking:SetScript("OnEvent", function()
   end
 
   -- remove events
-  this:UnregisterAllEvents()
+  pfDatabase.tracking:UnregisterAllEvents()
 end)
 
 -- track questitems to maintain object requirements
@@ -193,11 +193,12 @@ end
 
 pfDatabase.itemlist:RegisterEvent("BAG_UPDATE")
 pfDatabase.itemlist:SetScript("OnEvent", function()
-  this.update = GetTime() + .5
-  this:Show()
+  pfDatabase.itemlist.update = GetTime() + .5
+  pfDatabase.itemlist:Show()
 end)
 
 pfDatabase.itemlist:SetScript("OnUpdate", function()
+  local this = pfDatabase.itemlist
   if GetTime() < this.update then return end
 
   -- remove obsolete registry entries
@@ -225,9 +226,9 @@ pfDatabase.itemlist:SetScript("OnUpdate", function()
 
   -- fill new item db with equipped items
   for i=1,19 do
-    if GetInventoryItemLink("player", i) then
-      local _, _, link = string.find(GetInventoryItemLink("player", i), "(item:%d+:%d+:%d+:%d+)");
-      local item = GetItemInfo(link)
+    local itemLink = GetInventoryItemLink("player", i)
+    if itemLink then
+      local item = GetItemInfo(itemLink)
       if item then this.db[item] = true end
     end
   end
@@ -253,17 +254,19 @@ end)
 
 -- check for unlocalized servers and fallback to enUS databases when the server
 -- returns item names that are different to the database ones. (check via. Hearthstone)
-CreateFrame("Frame", "pfQuestLocaleCheck", UIParent):SetScript("OnUpdate", function()
+local pfQuestLocaleCheckFrame = CreateFrame("Frame", "pfQuestLocaleCheck", UIParent)
+pfQuestLocaleCheckFrame:SetScript("OnUpdate", function()
+  local this = pfQuestLocaleCheckFrame
   -- throttle to to one item per second
-  if ( this.tick or 0) > GetTime() then return else this.tick = GetTime() + .1 end
+  if ( pfQuestLocaleCheckFrame.tick or 0) > GetTime() then return else pfQuestLocaleCheckFrame.tick = GetTime() + .1 end
 
-  if not this.dryrun then
+  if not pfQuestLocaleCheckFrame.dryrun then
     -- give the server one iteration to return the itemname.
     -- this is required for clients that use a clean wdb folder.
     ItemRefTooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
     ItemRefTooltip:SetHyperlink("item:6948:0:0:0")
     ItemRefTooltip:Hide()
-    this.dryrun = true
+    pfQuestLocaleCheckFrame.dryrun = true
     return
   end
 
@@ -753,7 +756,7 @@ function pfDatabase:SearchMetaRelation(query, meta, show)
 
   if pfDB["meta"] and pfDB["meta"][track] then
     -- check which faction should be searched
-    local faction = query.faction and string.lower(query.faction) or string.lower(UnitFactionGroup("player"))
+    local faction = query.faction and string.lower(query.faction) or (UnitFactionGroup("player") and string.lower(UnitFactionGroup("player")))
     faction = faction == "horde" and "H" or faction == "alliance" and "A" or ""
 
     -- iterate over all tracking entries
@@ -769,6 +772,9 @@ function pfDatabase:SearchMetaRelation(query, meta, show)
         local object = pfDB["objects"]["loc"][math.abs(entry)]
         local unit = pfDB["units"]["loc"][entry]
 
+        -- set node as tracking result
+        meta.tracking = true
+
         -- handle custom tracking icons
         if pfQuest_config.trackingicons == "0" then
           meta.icon = nil
@@ -778,13 +784,24 @@ function pfDatabase:SearchMetaRelation(query, meta, show)
           meta.icon = pfDatabase.icons[unit]
         end
 
+        -- set custom fade range for skill-trackables
+        if meta.icon and skill[track] then
+          meta.fade_range = 85
+        elseif meta.icon then
+          meta.fade_range = 10
+        else
+          meta.fade_range = nil
+        end
+
         if entry < 0 then
           pfDatabase:SearchObjectID(math.abs(entry), meta, maps)
         else
           pfDatabase:SearchMobID(entry, meta, maps)
         end
 
+        -- reset meta table
         meta.icon = prev_icon
+        meta.tracking = false
       end
     end
   end
@@ -1142,7 +1159,7 @@ function pfDatabase:SearchQuestID(id, meta, maps)
           if meta["qlogid"] then
             local _, _, _, _, _, complete = compat.GetQuestLogTitle(meta["qlogid"])
             complete = complete or GetNumQuestLeaderBoards(meta["qlogid"]) == 0 and true or nil
-            if complete then
+            if complete == true or complete == 1 then
               meta["texture"] = pfQuestConfig.path.."\\img\\complete_c"
             else
               meta["texture"] = pfQuestConfig.path.."\\img\\complete"
@@ -1522,7 +1539,7 @@ end
 function pfDatabase:AddCustomIcon(id, img, root)
   if not id or not img then return end
 
-  root = root and root .. "\\" or pfQuestConfig.path .. "\\"
+  root = (root or pfQuestConfig.path) .. "\\"
 
   local object = pfDB["objects"]["loc"][math.abs(id)]
   local unit = pfDB["units"]["loc"][math.abs(id)]
@@ -1787,7 +1804,7 @@ pfServerScan:SetScript("OnShow", function()
 end)
 
 local ignore, custom_id, custom_skip = {}, nil, nil
-pfServerScan:SetScript("OnUpdate", function()
+pfServerScan:SetScript("OnUpdate", function(this)
   if this.scanID >= this.max then
     this:Hide()
     return
